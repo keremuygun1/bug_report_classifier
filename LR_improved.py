@@ -3,7 +3,8 @@
 import pandas as pd
 import numpy as np
 import re
-import math
+import time
+import tracemalloc
 
 # Text and feature engineering
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -141,6 +142,8 @@ for project in projects:
     recalls     = []
     f1_scores   = []
     auc_values  = []
+    durations = []
+    memory_usages = []
     
     for repeated_time in range(REPEAT):
         # --- 4.1 Split into train/test ---
@@ -168,17 +171,30 @@ for project in projects:
         grid = GridSearchCV(
             clf,
             params,
-            cv=5,              # 5-fold CV (can be changed)
-            scoring='roc_auc'  # Using roc_auc as the metric for selection
+            cv=5,              
+            scoring='roc_auc' 
         )
         grid.fit(X_train, y_train)
     
         # Retrieve the best model
         best_clf = grid.best_estimator_
+        tracemalloc.start()
+        start_time = time.time()
         best_clf.fit(X_train, y_train)
+
+        current, peak = tracemalloc.get_traced_memory()
+        end_time = time.time()
+        tracemalloc.stop()
+
+        #Convert bytes to Kb.
+        peak_memory = peak / 1024
+        memory_usages.append(peak_memory)
+
+        duration = end_time - start_time
+        durations.append(duration)
     
         # --- 4.4 Make predictions & evaluate ---
-        y_pred = best_clf.predict(X_test.toarray())
+        y_pred = best_clf.predict(X_test)
     
         # Accuracy
         acc = accuracy_score(y_test, y_pred)
@@ -209,6 +225,8 @@ for project in projects:
     final_recall    = np.mean(recalls)
     final_f1        = np.mean(f1_scores)
     final_auc       = np.mean(auc_values)
+    final_duration  = np.mean(durations)
+    final_memory_usage = np.mean(memory_usages)
     
     print(f"=== Logistic Regression + TF-IDF Results for {project} ===")
     print(f"Number of repeats:     {REPEAT}")
@@ -217,6 +235,8 @@ for project in projects:
     print(f"Average Recall:        {final_recall:.4f}")
     print(f"Average F1 score:      {final_f1:.4f}")
     print(f"Average AUC:           {final_auc:.4f}")
+    print(f"Average duration:           {final_duration:.4f}")
+    print(f"Average memory usage:           {final_memory_usage:.4f}Kb")
     
     # Save final results to CSV (append mode)
     df_log = pd.DataFrame(
@@ -226,7 +246,9 @@ for project in projects:
             'Precisions': precisions,
             'Recalls': recalls,
             'F1s': f1_scores,
-            'AUCs': auc_values
+            'AUCs': auc_values,
+            'Durations': durations,
+            'Memory_KB': memory_usages
         }
     )
     

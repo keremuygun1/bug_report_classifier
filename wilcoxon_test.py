@@ -11,6 +11,8 @@ precisions  = []
 recalls     = []
 f1_scores   = []
 auc_values  = []
+durations = []
+memory_usages = []
 
 #1.2 Create names for the wilcoxon pvalue files
 out_file_name = f"wilcoxon_pvalues.csv"
@@ -63,6 +65,20 @@ for dataset in datasets:
     pval_auc = auc_res.pvalue
     auc_values.append(pval_auc)
 
+    time_nb = df_nb["Durations"]
+    time_lr = df_lr["Durations"]
+
+    time_res = wilcoxon(time_nb, time_lr, alternative="less")
+    pval_time = time_res.pvalue
+    durations.append(pval_time)
+
+    memory_nb = df_nb["Memory_KB"]
+    memory_lr = df_lr["Memory_KB"]
+
+    memory_res = wilcoxon(memory_nb, memory_lr, alternative="greater")
+    pval_memory = memory_res.pvalue
+    memory_usages.append(pval_memory)
+
     #3. Store and Print every metric.
 
     print(f"======= Wilcoxon P-value results for {dataset} =======")
@@ -71,6 +87,8 @@ for dataset in datasets:
     print(f"Recall:        {pval_rec:.6f}")
     print(f"F1:             {pval_f1:.6f}")
     print(f"AUC:           {pval_auc:.6f}")
+    print(f"Duration:     {pval_time:.6f}")
+    print(f"Memory usage (in Kb):     {pval_memory:.6f}")
 
 #3.1 Create a dataframe and store the results as csv using pandas.
 
@@ -81,7 +99,9 @@ results_df = pd.DataFrame(
         "Precision": precisions,
         "Recall": recalls,
         "F1": f1_scores,
-        "AUC": auc_values
+        "AUC": auc_values,
+        "Duration": durations,
+        "Memory_KB": memory_usages
     }
 )
 
